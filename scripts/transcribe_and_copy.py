@@ -17,7 +17,7 @@ from typing import Optional
 import requests
 import certifi
 
-DEEGRAM_API_URL = "https://api.deepgram.com/v1/listen"
+DEEPGRAM_API_URL = "https://api.deepgram.com/v1/listen"
 
 
 def read_api_key(cli_key: Optional[str]) -> str:

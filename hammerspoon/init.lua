@@ -14,10 +14,10 @@ local autoPasteAfterCopy = true
 -- Audio settings
 local audioSampleRate = 48000
 local audioBitrate = "192k"
-local fileExtension = "m4a" -- change to "wav" if desired
+local fileExtension = "wav" -- Use WAV format to avoid M4A corruption issues
 
 -- avfoundation device indices (auto-detected during installation)
-local microphoneDevice  = ":4"   -- Will be auto-detected by installer
+local microphoneDevice  = ":1"   -- MacBook Pro Microphone (change if auto-detection fails)
 
 -- Internal state
 local recordingTask = nil
@@ -109,8 +109,8 @@ local function startRecording()
 
   local cmd = string.format([[%s -hide_banner -loglevel error \
     -f avfoundation -i "%s" \
-    -ar %d -c:a aac -b:a %s "%s"]],
-    ffmpegPath, microphoneDevice, audioSampleRate, audioBitrate, outFile)
+    -ar %d -c:a pcm_s16le "%s"]],
+    ffmpegPath, microphoneDevice, audioSampleRate, outFile)
 
   recordingTask = hs.task.new("/bin/bash", function() end, {"-lc", cmd})
   recordingTask:start()
@@ -122,16 +122,26 @@ local function stopRecording()
     local pid = recordingTask:pid()
     print("Stopping ffmpeg with PID: " .. tostring(pid))
     if pid then
+      -- Send SIGINT to allow ffmpeg to properly close the file
       hs.task.new("/bin/kill", function() end, {"-INT", tostring(pid)}):start()
+      
+      -- Wait for ffmpeg to finish writing properly
+      hs.timer.doAfter(2.0, function()
+        if recordingTask and recordingTask:isRunning() then
+          recordingTask:terminate()
+        end
+        recordingTask = nil
+      end)
     else
       recordingTask:terminate()
+      recordingTask = nil
     end
   end
-  recordingTask = nil
   hs.alert.show("Recording ended")
 
   if lastOutputFile then
-    hs.timer.doAfter(0.5, function()
+    -- Increased delay to ensure file is fully written
+    hs.timer.doAfter(2.5, function()
       if hs.fs.attributes(lastOutputFile) then
         runTranscription(lastOutputFile)
       end
