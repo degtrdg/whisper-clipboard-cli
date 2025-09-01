@@ -124,24 +124,16 @@ local function stopRecording()
     if pid then
       -- Send SIGINT to allow ffmpeg to properly close the file
       hs.task.new("/bin/kill", function() end, {"-INT", tostring(pid)}):start()
-      
-      -- Wait for ffmpeg to finish writing properly
-      hs.timer.doAfter(2.0, function()
-        if recordingTask and recordingTask:isRunning() then
-          recordingTask:terminate()
-        end
-        recordingTask = nil
-      end)
     else
       recordingTask:terminate()
-      recordingTask = nil
     end
   end
+  recordingTask = nil
   hs.alert.show("Recording ended")
 
   if lastOutputFile then
-    -- Increased delay to ensure file is fully written
-    hs.timer.doAfter(2.5, function()
+    -- WAV format with SIGINT allows for minimal delay
+    hs.timer.doAfter(0.5, function()
       if hs.fs.attributes(lastOutputFile) then
         runTranscription(lastOutputFile)
       end
